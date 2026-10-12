@@ -1,15 +1,15 @@
 <div align="center">
 
-# 麦麦全能助手 · McOmni
+# 🍟 麦麦全能助手 · McOmni
 
 **一句话，搞定吃麦全流程**
 
-领券 → 选店 → 配餐 → 比价 → 下单 → 派对预约 → 积分止损
+`领券` → `选店` → `配餐` → `比价` → `下单` → `派对预约` → `积分止损`
 
 [![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-blue)](https://open.mcd.cn/mcp)
-[![Tools](https://img.shields.io/badge/MCP%20Tools-35%20%2F%2035-success)](#能力总览)
+[![Tools](https://img.shields.io/badge/MCP%20Tools-35%20%2F%2035-success)](#-能力总览)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB)](https://www.python.org/)
-[![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)](#快速开始)
+[![Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)](#-快速开始)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 基于**麦当劳中国官方 MCP Server**（`mcd-mcp` @ `https://mcp.mcd.cn`）构建的全能助手 Skill。
@@ -22,58 +22,74 @@
 
 ## 目录
 
-- [它解决什么问题](#它解决什么问题)
-- [能力总览](#能力总览)
-- [快速开始](#快速开始)
-- [七大核心工作流](#七大核心工作流)
-- [为什么它靠谱](#为什么它靠谱)
-- [项目结构](#项目结构)
-- [排障速查](#排障速查)
-- [安全与边界](#安全与边界)
+- [它解决什么问题](#-它解决什么问题)
+- [能力总览](#-能力总览)
+- [快速开始](#-快速开始)
+- [七大核心工作流](#-七大核心工作流)
+- [为什么它靠谱](#-为什么它靠谱)
+- [项目结构](#-项目结构)
+- [排障速查](#-排障速查)
+- [安全与边界](#-安全与边界)
 
 ---
 
-## 它解决什么问题
+## 🧩 它解决什么问题
 
 麦当劳把 **35 个能力**开放给了 AI。但在真实账号上跑一遍就会知道：**能调用 ≠ 会用**。
 
-```text
-用户：想点个麦当劳
-  └─ 怎么取餐？    到店自取 / 麦乐送 / 得来速
-       └─ 去哪家店？   query-nearby-stores  →  storeCode (+ beCode)
-            └─ 吃什么？  query-meals        →  productCode
-                 └─ 多少钱？ calculate-price →  takeWayCode
-                      └─ 下单  create-order  →  orderId
+```mermaid
+flowchart TD
+    U["👤 用户：想点个麦当劳"] --> Q{"🍽️ 怎么取餐？"}
 
-每一环都必须来自上一环的返回值；中间任何一环猜错，订单就下不出去。
+    Q -->|"到店自取"| S1["query-nearby-stores<br/>→ storeCode"]
+    Q -->|"麦乐送"| S2["delivery-query-stores<br/>→ storeCode + beCode"]
+    Q -->|"得来速"| S3["query-nearby-stores<br/>→ storeCode + beCode"]
+
+    S1 --> M["query-meals<br/>→ productCode"]
+    S2 --> M
+    S3 --> M
+    M --> P["calculate-price<br/>→ takeWayCode"]
+    P --> C["create-order<br/>→ orderId"]
+
+    style Q fill:#FAEEDA,stroke:#854F0B,stroke-width:0.5px,color:#633806
+    style P fill:#E6F1FB,stroke:#185FA5,stroke-width:0.5px,color:#042C53
+    style C fill:#EAF3DE,stroke:#3B6D11,stroke-width:0.5px,color:#173404
 ```
 
-同时还要管住三件事：**① `beType` / `orderType` 的组合**（决定取餐方式）、**② 有副作用的操作不能误触发**（下单 / 领券 / 抽奖）、**③ 花积分类的取舍不能替用户拍板**。
+**每一环都必须来自上一环的返回值**；中间任何一环猜错，订单就下不出去。
 
-McOmni 的价值不在"能调用工具"，而在**知道什么时候不该调用**——它把踩过的坑固化成硬约束，让 AI 在你的真实账号上安全地跑完整个流程。
+同时还要管住三件事：
+
+| # | 要管住的事 | 不遵守的后果 |
+|:--:|---|---|
+| ① | `beType` / `orderType` 的组合 | 取餐方式错乱 |
+| ② | 有副作用的操作（下单 / 领券 / 抽奖）不能误触发 | 真花钱、真扣分 |
+| ③ | 花积分类的取舍不能替用户拍板 | 僭越了用户的决定权 |
+
+> McOmni 的价值不在"能调用工具"，而在**知道什么时候不该调用**——它把踩过的坑固化成硬约束，让 AI 在你的真实账号上安全地跑完整个流程。
 
 ---
 
-## 能力总览
+## 🎯 能力总览
 
 **35 / 35 工具全覆盖**，不只是检索类接口。
 
 | 分组 | 数量 | 代表能力 |
 |---|:--:|---|
-| 活动与优惠 | 4 | 当月活动日历、可领券、一键领券、我的券 |
-| 到店点餐 | 7 | 门店查询、菜单、详情、算价、下单、取消、订单详情 |
-| 麦乐送外送 | 3 | 地址管理、可配送门店 |
-| 积分与商城 | 7 | 积分账户、抽奖、奖品、商城兑换、商城订单 |
-| 营养数据 | 2 | 160+ 条餐品营养（能量 / 蛋白 / 脂肪 / 碳水 / 钠 / 钙）|
-| 派对与活动预约 | 5 | 城市 → 门店 → 日期 → 场次 → 下单 |
-| 企业团餐 | 3 | 团餐门店、助餐服务、促销规则 |
-| 其他 | 4 | 服务器时间、历史订单、满意度奖券、门店级用券 |
+| 🎫 活动与优惠 | 4 | 当月活动日历、可领券、一键领券、我的券 |
+| 🏪 到店点餐 | 7 | 门店查询、菜单、详情、算价、下单、取消、订单详情 |
+| 🛵 麦乐送外送 | 3 | 地址管理、可配送门店 |
+| 🎁 积分与商城 | 7 | 积分账户、抽奖、奖品、商城兑换、商城订单 |
+| 🥗 营养数据 | 2 | 160+ 条餐品营养（能量 / 蛋白 / 脂肪 / 碳水 / 钠 / 钙）|
+| 🎉 派对与活动预约 | 5 | 城市 → 门店 → 日期 → 场次 → 下单 |
+| 🏢 企业团餐 | 3 | 团餐门店、助餐服务、促销规则 |
+| 🧩 其他 | 4 | 服务器时间、历史订单、满意度奖券、门店级用券 |
 
 三种取餐方式全部支持：**到店自取** / **麦乐送外送** / **得来速车道取餐**。
 
 ---
 
-## 快速开始
+## 🚀 快速开始
 
 ### 第 1 步 · 拿 Token
 
@@ -122,24 +138,24 @@ python scripts/points_expiry_draw.py
 
 ---
 
-## 七大核心工作流
+## 🧭 七大核心工作流
 
 | # | 工作流 | 工具链 |
 |:--:|---|---|
 | 0 | **入口 · 确认取餐方式** | 先问「到店自取 / 麦乐送 / 得来速」，再决定后续全部参数 |
-| 1 | **领券** | `available-coupons` → `auto-bind-coupons` → `query-my-coupons` |
-| 2 | **点餐（到店 / 得来速）** | `query-nearby-stores` → `query-meals` → `query-meal-detail` → `calculate-price` → `create-order` |
-| 3 | **外送（麦乐送）** | `delivery-query-addresses` → `delivery-query-stores` → `query-meals` → `calculate-price` → `create-order` |
-| 4 | **周边玩具雷达** | `campaign-calendar` + `mall-points-products(2>8)` + `query-meals` 组合拼出 |
-| 5 | **积分抽奖 / 到期止损** | `query-my-account` → `query-lottery-info` → `draw-lottery` → `query-my-prizes` |
-| 6 | **热量计算** | `list-nutrition-foods` / `query-meal-detail` |
-| 7 | **优惠计算器** | `query-store-coupons` → `calculate-price`（用券 / 不用券 两组对比）|
+| 1 | 🎫 **领券** | `available-coupons` → `auto-bind-coupons` → `query-my-coupons` |
+| 2 | 🏪 **点餐（到店 / 得来速）** | `query-nearby-stores` → `query-meals` → `query-meal-detail` → `calculate-price` → `create-order` |
+| 3 | 🛵 **外送（麦乐送）** | `delivery-query-addresses` → `delivery-query-stores` → `query-meals` → `calculate-price` → `create-order` |
+| 4 | 🧸 **周边玩具雷达** | `campaign-calendar` + `mall-points-products(2>8)` + `query-meals` 组合拼出 |
+| 5 | 🎰 **积分抽奖 / 到期止损** | `query-my-account` → `query-lottery-info` → `draw-lottery` → `query-my-prizes` |
+| 6 | 🥗 **热量计算** | `list-nutrition-foods` / `query-meal-detail` |
+| 7 | 💰 **优惠计算器** | `query-store-coupons` → `calculate-price`（用券 / 不用券 两组对比）|
 
-> 工作流 4 需要特别说明：MCP **没有**原生"玩具"接口，这是**组合能力**。若接口未返回玩具字段，助手会如实说明「本期接口未返回玩具信息」，**不会编造款式**。
+> ⚠️ 工作流 4 需要特别说明：MCP **没有**原生"玩具"接口，这是**组合能力**。若接口未返回玩具字段，助手会如实说明「本期接口未返回玩具信息」，**不会编造款式**。
 
 ---
 
-## 为什么它靠谱
+## 🛡️ 为什么它靠谱
 
 ### 14 条防错铁律（节选）
 
@@ -166,7 +182,7 @@ python scripts/points_expiry_draw.py
 ③ 消耗性取舍交用户   不替用户决定花多少积分、要不要溢出
 ```
 
-### 积分到期止损：一个具体例子
+### 💡 积分到期止损：一个具体例子
 
 麦当劳积分会过期。实测扣减顺序是 **先扣将过期积分，不足才从其他积分扣**，所以：
 
@@ -180,11 +196,24 @@ python scripts/points_expiry_draw.py --yes                    # 只花将过期�
 python scripts/points_expiry_draw.py --yes --allow-overflow   # 用户明确同意后才可溢出
 ```
 
-不加 `--allow-overflow` 时、若会溢出，脚本**以退出码 2 拒绝执行**——把决定权留给你，而不是"帮你想开一点"。
+```mermaid
+flowchart LR
+    A["读取将过期积分"] --> B["算可抽次数 N"]
+    B --> C{"会溢出吗？"}
+    C -->|"不会"| D["直接执行"]
+    C -->|"会"| E["拒绝执行<br/>退出码 2"]
+    E --> F["需显式加 --allow-overflow"]
+
+    style C fill:#FAEEDA,stroke:#854F0B,stroke-width:0.5px,color:#633806
+    style D fill:#EAF3DE,stroke:#3B6D11,stroke-width:0.5px,color:#173404
+    style E fill:#FCEBEB,stroke:#A32D2D,stroke-width:0.5px,color:#791F1F
+```
+
+**把决定权留给你**，而不是"帮你想开一点"。
 
 ---
 
-## 项目结构
+## 📂 项目结构
 
 ```text
 .
@@ -204,7 +233,7 @@ python scripts/points_expiry_draw.py --yes --allow-overflow   # 用户明确同�
 
 ---
 
-## 排障速查
+## 🔧 排障速查
 
 | 现象 | 原因与处理 |
 |---|---|
@@ -218,7 +247,7 @@ python scripts/points_expiry_draw.py --yes --allow-overflow   # 用户明确同�
 
 ---
 
-## 安全与边界
+## 🔐 安全与边界
 
 - **Token 即身份**：本项目**不保存、不打印**你的 Token。仓库中只保留 `mcp-config.example.json` 占位符示例，**不包含任何真实凭证**。
 - **有副作用的操作需明确确认**：下单、领券、抽奖、兑换均需用户确认后才执行。
@@ -226,12 +255,12 @@ python scripts/points_expiry_draw.py --yes --allow-overflow   # 用户明确同�
 
 ---
 
-## 参与的活动
+## 🏆 参与的活动
 
 本项目为「**麦当劳程序员创意开发大赛（M-CODE 1024）**」参赛作品，由参赛者独立开发。
 
 开发过程使用 **腾讯 WorkBuddy**，完整对话上下文见 [`workbuddy.md`](workbuddy.md)。
 
-## License
+## 📄 License
 
 [MIT](LICENSE)
