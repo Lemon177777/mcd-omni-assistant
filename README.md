@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/banner.jpg" alt="McOmni · 麦麦全能助手" width="100%">
+
 # 🍟 麦麦全能助手 · McOmni
 
 **一句话，搞定吃麦全流程**
@@ -260,6 +262,16 @@ flowchart LR
 本项目为「**麦当劳程序员创意开发大赛（M-CODE 1024）**」参赛作品，由参赛者独立开发。
 
 开发过程使用 **腾讯 WorkBuddy**，完整对话上下文见 [`workbuddy.md`](workbuddy.md)。
+
+---
+
+<div align="center">
+
+<img src="assets/mascot.jpg" alt="McOmni 吉祥物" width="140">
+
+**如果这个项目对你有帮助，欢迎点一个 Star ⭐**
+
+</div>
 
 ## 📄 License
 
